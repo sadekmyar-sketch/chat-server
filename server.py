@@ -8,34 +8,40 @@ HOST = '0.0.0.0'
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((HOST, PORT))
-server.listen(5)
+server.listen(10)
 
-print(f"Server is running on port {PORT} and waiting for connections...")
+
+clients = []
+
+def broadcast(message, current_conn):
+    for client in clients:
+        if client != current_conn:
+            try:
+                client.send(message)
+            except:
+                client.close()
+                if client in clients:
+                    clients.remove(client)
 
 def handle_client(conn, addr):
-    print(f"[NEW CONNECTION] {addr} connected.")
-    try:
-        while True:
-            
-            data = conn.recv(1024).decode('utf-8')
-            if not data:
+    print(f"User {addr} connected.")
+    clients.append(conn)
+    while True:
+        try:
+            message = conn.recv(1024)
+            if not message:
                 break
             
-            print(f"[{addr}] says: {data}")
-            
-            
-            response = f"Received: {data}"
-            conn.send(response.encode('utf-8'))
-            
-    except Exception as e:
-        print(f"[ERROR] {e}")
-    finally:
-        conn.close()
-        print(f"[DISCONNECTED] {addr} disconnected.")
+            broadcast(message, conn)
+        except:
+            break
+    
+    conn.close()
+    if conn in clients:
+        clients.remove(conn)
+    print(f"User {addr} disconnected.")
 
-
+print(f"Server is running on port {PORT}...")
 while True:
     conn, addr = server.accept()
-    
-    thread = threading.Thread(target=handle_client, args=(conn, addr))
-    thread.start()
+    threading.Thread(target=handle_client, args=(conn, addr), daemon=True).start()

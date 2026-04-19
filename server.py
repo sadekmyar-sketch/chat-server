@@ -2,35 +2,40 @@ import socket
 import threading
 import os
 
+
 PORT = int(os.environ.get("PORT", 8080))
+HOST = '0.0.0.0'
+
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server.bind(('0.0.0.0', PORT))
-server.listen(1)
+server.bind((HOST, PORT))
+server.listen(5)
 
-print(f"Server is waiting for connection...")
+print(f"Server is running on port {PORT} and waiting for connections...")
 
-def receive_messages(conn):
-    while True:
-        try:
+def handle_client(conn, addr):
+    print(f"[NEW CONNECTION] {addr} connected.")
+    try:
+        while True:
+            
             data = conn.recv(1024).decode('utf-8')
-            if not data: break
-            print(f"\n[Client]: {data}")
-            print("You (Server): ", end="") 
-        except:
-            break
-
-conn, addr = server.accept()
-print(f"Connected to {addr}")
-
-
-threading.Thread(target=receive_messages, args=(conn,), daemon=True).start()
+            if not data:
+                break
+            
+            print(f"[{addr}] says: {data}")
+            
+            
+            response = f"Received: {data}"
+            conn.send(response.encode('utf-8'))
+            
+    except Exception as e:
+        print(f"[ERROR] {e}")
+    finally:
+        conn.close()
+        print(f"[DISCONNECTED] {addr} disconnected.")
 
 
 while True:
-    msg = input("You (Server): ")
-    if msg.lower() == 'exit': break
-    conn.send(msg.encode('utf-8'))
-
-conn.close()
-                
-           
+    conn, addr = server.accept()
+    
+    thread = threading.Thread(target=handle_client, args=(conn, addr))
+    thread.start()
